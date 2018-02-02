@@ -70,7 +70,7 @@ lines(S, Prefs) ->
 -record(i, {indent_line, anchor, current}).
 
 get_prefs([], OldP, Acc) ->
-    Acc ++ OldP;
+    maps:from_list(Acc ++ OldP);
 get_prefs([{Key, Value} | Rest], OldP, Acc) ->
     P = lists:keydelete(Key, 1, OldP),
     get_prefs(Rest, P, [{Key, Value} | Acc]).
@@ -178,8 +178,8 @@ reindent_line(Line, N, Prefs) ->
             false -> {false, Line};
             Indented -> {true, Indented}
         end,
-    UseTabs = proplists:get_value(use_tabs, Prefs),
-    TabLen = proplists:get_value(tab_len, Prefs),
+    UseTabs = indent_by(use_tabs, Prefs),
+    TabLen  = indent_by(tab_len, Prefs),
     {Tabbed, Res} = entab(L, UseTabs, TabLen),
     {Changed orelse Tabbed, Res}.
 
@@ -230,8 +230,9 @@ i_check(T, I) ->
             throw(Throw)
     end.
 
+indent_by(none, _) -> 0;
 indent_by(Key, Prefs) ->
-    proplists:get_value(Key, Prefs, 0).
+    maps:get(Key, Prefs, 0).
 
 get_indent_of([{What, ?col(CA)}=_A|_], {C, ?col(Exp)}, Prefs) when is_atom(What), is_atom(C) ->
     Col0 = CA+indent_by(What, Prefs),
