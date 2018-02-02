@@ -200,6 +200,16 @@ spaces([$\s|R], N) ->
     spaces(R, N+1);
 spaces(_, N) -> N.
 
+newlines(Str) ->
+    newlines(Str, 0).
+
+newlines([$\n|Str], N) ->
+    newlines(Str, N+1);
+newlines([_|Str], N) ->
+    newlines(Str, N);
+newlines([], N) ->
+    N.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% TODO: value 4 is hardcoded! Should use indentation width here
@@ -215,10 +225,25 @@ indent(Tokens, Line, Fun) ->
 %% Uses process dictionary for storing the last checked LINE number it
 %% really should be in I#i{} record but that is not contained when parsing the
 %% code, so it's a large update to fix that.
-check_indent_lines(eof, A, C, _Lines, Prefs) ->
-    ToCol = get_indent_of(A, C, Prefs),
-    throw({indent, {get(?MODULE), ToCol}});
-check_indent_lines(Line, A, C, Lines, Prefs) ->
+check_indent_lines({string,{Line,_},Str,Str1}, A, C, Lines, Prefs) ->
+    io:format("Str0 ~w~n",[Str]),
+    io:format("Str1 ~w~n",[Str1]),
+    NLs = newlines(Str),
+    Wanted = get(?MODULE),
+    case Line <  Wanted of
+        true -> put(?MODULE, max(Wanted, Line+NLs+1));
+        false ->
+            ToCol = get_indent_of(A, C, Prefs),
+            SrcLine = array:get(Line, Lines),
+            case spaces(SrcLine) of
+                ignore -> put(?MODULE, Line+NLs+1);
+                ToCol -> put(?MODULE, Line+NLs+1);
+                _ ->
+                    %% ?D("~4.w: ~2w |~ts", [Line, ToCol, SrcLine]),
+                    throw({indent, {Line, ToCol}})
+            end
+    end;
+check_indent_lines(?line(Line), A, C, Lines, Prefs) ->
     case Line < get(?MODULE) of
         true -> ok;
         false ->
@@ -231,7 +256,10 @@ check_indent_lines(Line, A, C, Lines, Prefs) ->
                     %% ?D("~4.w: ~2w |~ts", [Line, ToCol, SrcLine]),
                     throw({indent, {Line, ToCol}})
             end
-    end.
+    end;
+check_indent_lines(eof, A, C, _Lines, Prefs) ->
+    ToCol = get_indent_of(A, C, Prefs),
+    throw({indent, {get(?MODULE), ToCol}}).
 
 indent_by(none, _) -> 0;
 indent_by(Key, Prefs) ->
@@ -280,8 +308,8 @@ keep_one(Until, #i{anchor=[{_,_}|As]} = I) ->
 top(#i{anchor=[Top|_]}) ->
     Top.
 
-i_check([?line(Line)|_], #i{check=Check, anchor=A, current=C}) ->
-    Check(Line, A, C);
+i_check([Head|_], #i{check=Check, anchor=A, current=C}) ->
+    Check(Head, A, C);
 i_check([], #i{check=Check, anchor=A, current=C}) ->
     Check(eof, A, C).
 

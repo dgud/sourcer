@@ -188,3 +188,16 @@ binary_string() ->
                   "oskar B"/binary>>,
     {ok, BinString}.
 
+ml_string() ->
+    ListString = "row 1L
+row 2L
+row 3L",
+    {ok, ListString}.
+
+bin_ml_string() ->
+    ListString = <<"row 1B
+row 2B
+row 3B">>,
+    {ok, ListString}.
+
+
